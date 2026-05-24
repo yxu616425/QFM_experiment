@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Large/generated experiment outputs
+results*/
+logs*/
+*.out
+*.log
+*.tmp
+*.fifo
+
+# Datasets and external binaries are not tracked by default
+data/
+data_raw/
+tools/*.jar
+tools/ciclad*
+tools/hamm*
+Hamm-Algorithm-main/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
