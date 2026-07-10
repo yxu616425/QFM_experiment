@@ -16,9 +16,7 @@ logs*/
 # Datasets and external binaries are not tracked by default
 data/
 data_raw/
-tools/*.jar
-tools/ciclad*
-tools/hamm*
+tools/
 Hamm-Algorithm-main/
 
 # OS/editor
