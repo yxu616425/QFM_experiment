@@ -1,64 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-QFM Table-IX multi-row QPU validation on Amazon Braket (one-click).
-===================================================================
-Answers Yang 0701 comment [急]: "Table IX 只有一 row 太 weak，請再跑 2 組其他
-sample dataset，結果類似即可" + (optional) second backend echoing the Aer
-noise table (Rigetti Ankaa-class row).
+"""Earlier QFM support-decision validation utilities for Amazon Braket.
 
-What it does
-------------
-For each configured GROUP, it *actually samples* M transactions from a real
-UCI dataset file (so the paper sentence "randomly sampled from the X dataset"
-is literally true), projects them onto 3 items (attribute=value items, chosen
-near the support threshold so labels are non-trivial), enumerates the C2
-candidate pairs exactly like the original 11-instance Mushroom run (F1 ->
-prefix join -> C2), builds the SAME v29 threshold-oracle circuit used for the
-existing IonQ Forte 1 row, and runs each candidate-verification instance on
-the selected Braket QPU with --shots (default 100, same protocol as the
-existing row).
+This driver samples transactions from UCI files, projects them onto three
+items, and builds candidate-pair circuits with the v29 sequential-counter
+builder. The sampled indices and item mappings are recorded with the results.
+For the current offset-in-reduction threshold circuit, see qfm_qsv.py.
 
-Default plan (matches the LINE discussion):
-  Row 2: Tic-Tac-Toe, M in {5,6},  ~11 instances, IonQ Forte 1
-  Row 3: Car,         M in {7,8},  ~11 instances, IonQ Forte 1
-  Row 4 (optional, --with-ankaa): Chess (kr-vs-kp), M in {4,5}, ~10 instances,
-         Rigetti Ankaa-3  -> echoes the "Rigetti Ankaa-class" row of the Aer
-         table; expected ~90%+ (NOT guaranteed 100%: superconducting noise +
-         routing; that is the point of the echo row).
-
-Safety: DEFAULT IS DRY-RUN. It builds every circuit, verifies every label
-classically, prints depths and a cost estimate, and writes the plan CSV.
-Nothing is submitted until you re-run with --submit.
-
-Usage (on SageMaker, next to the v29 file, with data_raw/ present)
-------------------------------------------------------------------
-  # 1) dry run (no AWS calls except optional device lookup):
-  python qfm_qpu_multirow_braket.py
-
-  # 2) real run, two IonQ rows:
-  python qfm_qpu_multirow_braket.py --submit
-
-  # 3) real run including the Ankaa echo row:
-  python qfm_qpu_multirow_braket.py --submit --with-ankaa
-
-  # useful:
-  --data-dir PATH      folder containing tic-tac-toe.data / car.data / kr-vs-kp.data
-  --v29 PATH           the v29 autopilot .py (auto-found next to this script)
-  --shots 100          per-task shots (same as existing Table IX row)
-  --max-usd 300        abort before submitting if the estimate exceeds this
-  --seed 20260702      reproducibility (sampling + item choice)
-
-Outputs
--------
-  qpu_multirow_percircuit.csv   one line per candidate instance (incl. task id,
-                                sampled row indices, item mapping -> provenance)
-  qpu_multirow_rows.csv         per-group aggregate = one Table IX row each
-  qpu_multirow_tableIX.tex      ready-to-paste LaTeX rows
-
-Needs: qiskit, qiskit-braket-provider, amazon-braket-sdk (only for --submit).
-NOTE  Braket pricing defaults below are from earlier runs -- verify current
-      per-task/per-shot rates in the AWS console before --submit.
+The default mode prepares a local plan. Submission requires --submit and AWS
+credentials. Device selection, shots, sampling seed, data locations, and cost
+limits are available through --help. Check current Braket prices before
+submitting jobs. Existing output filenames are preserved for compatibility.
 """
 from __future__ import annotations
 import argparse, csv, glob, hashlib, importlib.util, math, os, random, sys, time
@@ -270,7 +222,7 @@ def raw_p_flag1(counts, pos, orient):
 
 def raw_validate_on_sv1(samples, shots=1000):
     """samples = [(tqc, flag_pos, ideal_label), ...] with both labels present.
-    Determines the bitstring orientation and proves the pipeline end-to-end on
+    Checks the bitstring orientation and validates the execution path on
     the SV1 simulator BEFORE any QPU money is spent."""
     from braket.aws import AwsDevice
     sv1 = AwsDevice("arn:aws:braket:::device/quantum-simulator/amazon/sv1")
@@ -383,7 +335,7 @@ def run_aer_supplement(args, build_fn):
 
 # ------------------------------------------------------------------- main ---
 def main():
-    ap = argparse.ArgumentParser(description="QFM Table-IX multi-row QPU validation")
+    ap = argparse.ArgumentParser(description="Earlier QFM multirow Braket validation")
     ap.add_argument("--v29", default=None)
     ap.add_argument("--data-dir", default=None)
     ap.add_argument("--shots", type=int, default=100)

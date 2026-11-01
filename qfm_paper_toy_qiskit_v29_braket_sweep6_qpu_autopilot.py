@@ -1,39 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Braket sweep (6 toy points) to plot:
-  x-axis: minsup / tx_count (sigma/M) ratio
-  y-axis: *quantum RUNNING time* (best-effort, excludes QUEUED time by polling task.state())
+"""Earlier Braket support-decision validation on six predefined inputs.
 
-You asked for exactly 6 pre-designed toy points:
-  (1) Fixed dataset (M=6), vary minimum support sigma with equal spacing: sigma ∈ {1,3,5}
-  (2) Fixed minimum support (absolute, non-ratio) sigma=2, vary dataset size with equal spacing: M ∈ {4,6,8}
+This driver uses a sequential reversible counter followed by a comparison.
+For the current offset-in-reduction threshold circuit, see qfm_qsv.py.
 
-This script is intentionally NISQ-friendly:
-  - It times the core "threshold-oracle style" evaluation used in your QFc verification
-    (no Grover iterations).
-  - It does NOT rely on OpenQASM export. We submit Qiskit circuits through the
-    qiskit-braket-provider (BraketProvider). This avoids Braket OpenQASM limitations
-    such as: include statements not supported, and single-register restrictions.
+The sweep varies the support threshold or the transaction count. Expected
+itemsets are checked classically before circuit execution. It measures task
+RUNNING-state time by polling, with precision limited by the polling interval;
+this is distinct from a gate-duration-based QPU timing model.
 
-Important note about timing:
-  - Braket's quantum task spends time in states like QUEUED and RUNNING.
-  - We measure "RUNNING-only" time as: (time when we first observe state==RUNNING) to
-    (time when we first observe a terminal state).
-  - This is approximate to within your polling interval.
-
-Outputs:
-  --out-csv  CSV with all 6 points and measured timings
-  --out-png  scatter plot of (sigma/M) vs (RUNNING time)
-
-Usage (SV1):
-  python qfm_paper_toy_qiskit_v23_braket_sweep6_noqueue.py \
-    --braket-backend SV1 --shots 2000 --poll-interval 1 \
-    --out-csv sweep.csv --out-png sweep.png
-
-Optional correctness check (adds result download and p(flag=1) estimation):
-  --verify
-
+Use --help for execution, output, and verification options.
 """
 
 from __future__ import annotations
@@ -75,7 +52,7 @@ class ToyPoint:
     name: str
     txs: List[frozenset[str]]
     sigma: int
-    # expected (precomputed) results to "prove" the toy points differ
+    # Expected results for checking the predefined inputs
     exp_F1: List[Tuple[str]]
     exp_C2: List[Tuple[str, str]]
     exp_F2: List[Tuple[str, str]]
@@ -85,9 +62,9 @@ def build_toy_points() -> List[ToyPoint]:
     """
     Construct 6 toy points and embed expected results.
 
-    Design rationale (your constraints):
+    Input design:
       - Extremely small (items <=3, M<=8)
-      - Distinct mining outcomes across points (avoid flat line)
+      - Different predefined inputs with known mining outcomes
       - Equal-spacing for sigma in first trio; equal-spacing for M in second trio.
     """
     pts: List[ToyPoint] = []
@@ -295,8 +272,8 @@ def build_threshold_oracle_circuit(
         - sum register counts how many tx contain the candidate (subset test)
         - flag flips iff sum >= sigma
 
-    This matches the "heavy" part you are timing in QFc verification: subset checks + controlled adds + compare.
-    For NISQ, you are *not* doing Grover here; you only time this oracle evaluation.
+    This earlier circuit performs subset checks, sequential controlled additions, and a comparison.
+    The driver evaluates this circuit without Grover iterations.
 
     Returns:
       (qc, flag_qubit_index)
